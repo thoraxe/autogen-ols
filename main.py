@@ -4,6 +4,7 @@ import logging
 import random
 import subprocess
 import os
+import sys
 
 from typing import AsyncIterator
 
@@ -154,7 +155,7 @@ retrieval_agent_tool_list = [
 #### AGENTS ####
 routing_agent = AssistantAgent(
     name="routing_agent",
-    handoffs=["retrieval_agent","knowledge_agent","user"],
+    handoffs=["retrieval_agent","knowledge_agent"],
     system_message="""You are an agent-picking agent whose only job is to choose
 which agent to pass questions to.
 
@@ -208,31 +209,14 @@ team = Swarm(
 )
 
 user_query = "Are there any unhealthy pods in my cluster?"
-user_query = "How do I scale a pod automatically?"
 user_query = "What pods are in the namespace openshift-lightspeed?"
+user_query = "How do I scale a pod automatically?"
 
 
 async def assistant_run() -> None:
 
     print("----START----")
-    task_result = await Console(team.run_stream(task=user_query))
-    last_message = task_result.messages[-1]
-
-    while isinstance(last_message, HandoffMessage) and last_message.target == "user":
-        user_message = input("User: ")
-
-        task_result = await Console(
-            team.run_stream(task=HandoffMessage(source="user", target=last_message.source, content=user_message))
-        )
-        last_message = task_result.messages[-1]
-
-    # print("\n\n")
-    # print("--- ROUTING AGENT ---")
-    # print(response.inner_messages)
-
-    # print("\n--- THE FINAL ANSWER ---")
-    # print(response.chat_message)
-
+    task_result = await Console(team.run_stream(task=sys.argv[1]))
 
 # Use asyncio.run(assistant_run()) when running in a script.
 asyncio.run(assistant_run())
