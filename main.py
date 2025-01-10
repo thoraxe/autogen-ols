@@ -60,15 +60,15 @@ openai_model = os.getenv("OPENAI_MODEL")
 pre_path = "/home/thoraxe/bin/"
 
 
-default_client = OpenAIChatCompletionClient(model=openai_model, api_key=openai_api_key)
+#default_client = OpenAIChatCompletionClient(model=openai_model, api_key=openai_api_key)
 
-# default_client = AzureOpenAIChatCompletionClient(
-#    azure_deployment=azure_deployment,
-#    model=azure_model,
-#    api_version=azure_api_version,
-#    azure_endpoint=azure_endpoint,
-#    api_key=azure_api_key,
-# )
+default_client = AzureOpenAIChatCompletionClient(
+   azure_deployment=azure_deployment,
+   model=azure_model,
+   api_version=azure_api_version,
+   azure_endpoint=azure_endpoint,
+   api_key=azure_api_key,
+)
 
 
 #### TOOLS ####
@@ -229,6 +229,50 @@ get_pod_status_function_tool = FunctionTool(
 )
 retrieval_agent_tool_list.append(get_pod_status_function_tool)
 
+def get_object_health(kind: str, name: str, namespace: str) -> str:
+
+    ourlogger.info(f"get_object_health: ns:{namespace} {kind}/{name}")
+    ourlogger.info(f"namespace type is {type(namespace)}")
+
+    if type(namespace) is str:
+        if namespace == "":
+            output = subprocess.run(f"{pre_path}kube-health -H {kind}/{name}",
+                                    shell=True,
+                                    capture_output=True,
+                                    timeout=2
+                                    )
+        else:
+            output = subprocess.run(f"{pre_path}kube-health -n {namespace} -H {kind}/{name}",
+                                    shell=True,
+                                    capture_output=True,
+                                    timeout=2
+                                    )
+    
+    nlines = len(output.stdout.splitlines())
+
+    if nlines < 2:
+        return "Error: The object you are looking for does not exist"
+    else:
+        return output.stdout
+
+get_object_health_function_tool = FunctionTool(
+    get_object_health,
+    description="""
+    A simple tool to describe the health of an object in the cluster. Must be
+    used on individual objects one at a time. Does not accept 'all' as a name.
+    For example, if you want to look at all nodes, you must run this tool one at
+    a time against each individual node.
+
+    Args:
+      namespace (str): the namespace where the object is. for a cluster-scoped object, use None
+      kind (str): the type of object
+      name (str): the name of the object
+
+    Returns:
+      str: text describing the health of the object
+    """,
+)
+retrieval_agent_tool_list.append(get_object_health_function_tool)
 
 async def retrieval_tool(query: str) -> None:
     await Console(
@@ -247,15 +291,6 @@ async def knowledge_tool(query: str) -> None:
         )
     )
 
-
-# retrieval_agent_tool_list = [
-#    get_namespaces_function_tool,
-#    get_pod_list_function_tool,
-#    get_nonrunning_pods_function_tool,
-#    get_pod_details_function_tool,
-#    get_object_cluster_wide_list_function_tool,
-# ]
-
 #### END TOOLS ####
 
 #### AGENTS ####
@@ -269,6 +304,9 @@ The retrieval_agent is in charge of getting information from an openshift or
 kubernetes cluster.
 The knowledge_agent is in charge of answering
 knowledge-based questions like how-to, documentation, and related questions.
+
+Do not summarize responses from your agents. Be sure to pass their output directly
+to the user.
 
 After all tasks are complete, summarize the findings and end with "TERMINATE".""",
     model_client=default_client,
