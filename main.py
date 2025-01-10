@@ -9,6 +9,7 @@ import colorlog
 from devtools import pprint
 
 from typing import AsyncIterator
+from typing import Optional
 
 import autogen_agentchat
 from autogen_agentchat.agents import AssistantAgent
@@ -39,9 +40,9 @@ logging.basicConfig(level=logging.WARNING, handlers=[handler])
 
 ourlogger = logging.getLogger(__name__)
 # logger = logging.getLogger(TRACE_LOGGER_NAME)
-# logger2 = logging.getLogger(autogen_agentchat.TRACE_LOGGER_NAME)
+#logger2 = logging.getLogger(autogen_agentchat.TRACE_LOGGER_NAME)
 # logger.setLevel(logging.INFO)
-# logger2.setLevel(logging.INFO)
+#logger2.setLevel(logging.DEBUG)
 ourlogger.setLevel(logging.INFO)
 
 from dotenv import load_dotenv
@@ -229,24 +230,23 @@ get_pod_status_function_tool = FunctionTool(
 )
 retrieval_agent_tool_list.append(get_pod_status_function_tool)
 
-def get_object_health(kind: str, name: str, namespace: str) -> str:
+def get_object_health(kind: str, name: str, namespace: Optional[str]=None) -> str:
 
     ourlogger.info(f"get_object_health: ns:{namespace} {kind}/{name}")
     ourlogger.info(f"namespace type is {type(namespace)}")
 
-    if type(namespace) is str:
-        if namespace == "":
-            output = subprocess.run(f"{pre_path}kube-health -H {kind}/{name}",
-                                    shell=True,
-                                    capture_output=True,
-                                    timeout=2
-                                    )
-        else:
-            output = subprocess.run(f"{pre_path}kube-health -n {namespace} -H {kind}/{name}",
-                                    shell=True,
-                                    capture_output=True,
-                                    timeout=2
-                                    )
+    if namespace is None:
+        output = subprocess.run(f"{pre_path}kube-health -H {kind}/{name}",
+                                shell=True,
+                                capture_output=True,
+                                timeout=2
+                                )
+    else:
+        output = subprocess.run(f"{pre_path}kube-health -n {namespace} -H {kind}/{name}",
+                                shell=True,
+                                capture_output=True,
+                                timeout=2
+                                )
     
     nlines = len(output.stdout.splitlines())
 
