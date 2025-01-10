@@ -308,6 +308,8 @@ knowledge-based questions like how-to, documentation, and related questions.
 Do not summarize responses from your agents. Be sure to pass their output directly
 to the user.
 
+Make sure to explain your choices.
+
 After all tasks are complete, summarize the findings and end with "TERMINATE".""",
     model_client=default_client,
 )
@@ -318,9 +320,8 @@ retrieval_agent = AssistantAgent(
     description="This agent is used for retrieving data from OpenShift and Kubernetes clusters.",
     system_message="""You are a Kubernetes and OpenShift assistant. You should
 only answer questions related to OpenShift and Kubernetes. You can retrieve
-information from Kubernetes and OpenShift environments using your tools.
-
-When the transaction is complete, handoff to the routing_agent to finalize.
+information from Kubernetes and OpenShift environments using your tools. Always
+explain why you are making your choices.
 
 In general:
 * when it can provide extra information, first run as many tools as you need to gather more information, then respond. 
@@ -354,6 +355,8 @@ Style guide:
 * Be painfully concise.
 * Leave out "the" and filler words when possible.
 * Be terse but not at the expense of leaving out important data like the root cause and how to fix.
+
+When you have finished retrieving information, handoff to the routing_agent to finalize.
 """,
     model_client=default_client,
     tools=retrieval_agent_tool_list,
@@ -369,7 +372,7 @@ only answer questions related to OpenShift and Kubernetes. You are supposed
 to answer general knowledge, how-to, documentation, and other similar
 questions about OpenShift and Kubernetes
 
-When the transaction is complete, handoff to the routing_agent to finalize.
+When you have finished your research, handoff to the routing_agent to finalize.
 """,
     model_client=default_client,
 )
@@ -393,6 +396,9 @@ async def assistant_run() -> None:
 
     print("----START----")
     task_result = await Console(team.run_stream(task=sys.argv[1]))
+    #stream = team.run_stream(task=sys.argv[1])
+    #async for message in stream:
+    #    pprint(message)
 
 
 # Use asyncio.run(assistant_run()) when running in a script.
